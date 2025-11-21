@@ -32,7 +32,10 @@ services:
       - puppeteer-service
     ports:
       - "3002:3002"
-    command: ["pnpm", "run", "start:production"]
+    command: >
+      sh -lc "npm install -g corepack@latest &&
+              corepack enable &&
+              pnpm start production"
 
   worker:
     image: trieve/firecrawl:v0.0.46
@@ -41,7 +44,10 @@ services:
       - redis
       - puppeteer-service
       - api
-    command: ["pnpm", "run", "workers"]
+    command: >
+      sh -lc "npm install -g corepack@latest &&
+              corepack enable &&
+              pnpm run workers"
 
   redis:
     image: redis:alpine
