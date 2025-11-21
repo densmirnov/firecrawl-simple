@@ -3,7 +3,7 @@ name: firecrawl
 x-common-service: &common-service
   build: apps/api
   networks:
-    - backend
+    - dokploy-network
   environment:
     - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     - REDIS_RATE_LIMIT_URL=${REDIS_URL:-redis://redis:6379}
@@ -33,7 +33,7 @@ services:
       - TWOCAPTCHA_TOKEN=${TWOCAPTCHA_TOKEN}
       - MAX_CONCURRENCY=${MAX_CONCURRENCY}
     networks:
-      - backend
+      - dokploy-network
 
   api:
     image: trieve/firecrawl
@@ -56,9 +56,9 @@ services:
   redis:
     image: redis:alpine
     networks:
-      - backend
+      - dokploy-network
     command: redis-server --bind 0.0.0.0
 
 networks:
-  backend:
-    driver: bridge
+  dokploy-network:
+    external: true
