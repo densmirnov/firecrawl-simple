@@ -1,67 +1,64 @@
 name: firecrawl
 
-networks:
-  firecrawl-internal:
-    driver: bridge
-  dokploy-network:
-    external: true
-
-x-common-env: &common-env
-  - REDIS_URL=${FIRECRAWL_REDIS_URL:-redis://redis:6379}
-  - REDIS_RATE_LIMIT_URL=${FIRECRAWL_REDIS_URL:-redis://redis:6379}
-  - PLAYWRIGHT_MICROSERVICE_URL=http://puppeteer-service:3000
-  - PORT=3002
-  - NUM_WORKERS_PER_QUEUE=4
-  - BULL_AUTH_KEY=some-long-random-string
-  - TEST_API_KEY=codextown-firecrawl-key
-  - HOST=0.0.0.0
-  - LOGGING_LEVEL=info
-  - MAX_RAM=0.95
-  - MAX_CPU=0.95
+x-common-service: &common-service
+  build: apps/api
+  networks:
+    - backend
+  environment:
+    - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    - REDIS_RATE_LIMIT_URL=${REDIS_URL:-redis://redis:6379}
+    - PLAYWRIGHT_MICROSERVICE_URL=${PLAYWRIGHT_MICROSERVICE_URL:-http://playwright-service:3000}
+    - PORT=${PORT:-3002}
+    - NUM_WORKERS_PER_QUEUE=${NUM_WORKERS_PER_QUEUE}
+    - BULL_AUTH_KEY=${BULL_AUTH_KEY}
+    - TEST_API_KEY=${TEST_API_KEY}
+    - HOST=${HOST:-0.0.0.0}
+    - LOGGING_LEVEL=${LOGGING_LEVEL}
+    - MAX_RAM=${MAX_RAM:-0.95}
+    - MAX_CPU=${MAX_CPU:-0.95}
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
 
 services:
   puppeteer-service:
-    image: trieve/puppeteer-service-ts:v0.0.6
+    image: trieve/puppeteer-service-ts
+    build:
+      context: ./apps/puppeteer-service-ts/
+      dockerfile: Dockerfile
     environment:
       - PORT=3000
       - PROXY_SERVER=${PROXY_SERVER}
       - PROXY_USERNAME=${PROXY_USERNAME}
       - PROXY_PASSWORD=${PROXY_PASSWORD}
-      - MAX_CONCURRENCY=${MAX_CONCURRENCY:-4}
       - TWOCAPTCHA_TOKEN=${TWOCAPTCHA_TOKEN}
+      - MAX_CONCURRENCY=${MAX_CONCURRENCY}
     networks:
-      - firecrawl-internal
+      - backend
 
   api:
-    image: trieve/firecrawl:v0.0.46
-    environment: *common-env
-    networks:
-      - firecrawl-internal
-      - dokploy-network
+    image: trieve/firecrawl
+    <<: *common-service
     depends_on:
       - redis
       - puppeteer-service
     ports:
-      - "3002:3002" 
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "3002:3002"
     command: ["pnpm", "run", "start:production"]
 
   worker:
-    image: trieve/firecrawl:v0.0.46
-    environment: *common-env
-    networks:
-      - firecrawl-internal
+    <<: *common-service
     depends_on:
       - redis
       - puppeteer-service
       - api
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     command: ["pnpm", "run", "workers"]
 
   redis:
     image: redis:alpine
-    command: redis-server --bind 0.0.0.0
     networks:
-      - firecrawl-internal
+      - backend
+    command: redis-server --bind 0.0.0.0
+
+networks:
+  backend:
+    driver: bridge
