@@ -3,7 +3,7 @@ name: firecrawl
 x-common-service: &common-service
   build: apps/api
   networks:
-    - dokploy-network
+    - firecrawl-internal
   environment:
     - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     - REDIS_RATE_LIMIT_URL=${REDIS_URL:-redis://redis:6379}
@@ -33,7 +33,7 @@ services:
       - TWOCAPTCHA_TOKEN=${TWOCAPTCHA_TOKEN}
       - MAX_CONCURRENCY=${MAX_CONCURRENCY}
     networks:
-      - dokploy-network
+      - firecrawl-internal
 
   api:
     image: trieve/firecrawl
@@ -41,8 +41,9 @@ services:
     depends_on:
       - redis
       - puppeteer-service
-    ports:
-      - "3002:3002"
+    networks:
+      - firecrawl-internal
+      - dokploy-network
     command: ["pnpm", "run", "start:production"]
 
   worker:
@@ -51,14 +52,18 @@ services:
       - redis
       - puppeteer-service
       - api
+    networks:
+      - firecrawl-internal   # только внутренняя сеть
     command: ["pnpm", "run", "workers"]
 
   redis:
     image: redis:alpine
-    networks:
-      - dokploy-network
     command: redis-server --bind 0.0.0.0
+    networks:
+      - firecrawl-internal
 
 networks:
+  firecrawl-internal:
+    driver: bridge
   dokploy-network:
     external: true
