@@ -1,9 +1,5 @@
 name: firecrawl-simple
 
-networks:
-  firecrawl-internal:
-    driver: bridge
-
 x-common-env: &common-env
   - NUM_WORKERS_PER_QUEUE=4
   - PORT=3002
@@ -27,40 +23,26 @@ services:
       - PROXY_PASSWORD=${PROXY_PASSWORD}
       - TWOCAPTCHA_TOKEN=${TWOCAPTCHA_TOKEN}
       - MAX_CONCURRENCY=${MAX_CONCURRENCY:-4}
-    networks:
-      - firecrawl-internal
 
   api:
     image: trieve/firecrawl:v0.0.46
     environment: *common-env
-    networks:
-      - firecrawl-internal
     depends_on:
       - redis
       - puppeteer-service
     ports:
       - "3002:3002"
-    command: >
-      sh -lc "npm install -g corepack@latest &&
-              corepack enable &&
-              pnpm run start:production"
+    command: ["pnpm", "run", "start:production"]
 
   worker:
     image: trieve/firecrawl:v0.0.46
     environment: *common-env
-    networks:
-      - firecrawl-internal
     depends_on:
       - redis
       - puppeteer-service
       - api
-    command: >
-      sh -lc "npm install -g corepack@latest &&
-              corepack enable &&
-              pnpm run start:production"
+    command: ["pnpm", "run", "workers"]
 
   redis:
     image: redis:alpine
     command: redis-server --bind 0.0.0.0
-    networks:
-      - firecrawl-internal
